@@ -11,6 +11,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/mytheresa/go-hiring-challenge/app/database"
+	"github.com/mytheresa/go-hiring-challenge/internal/category"
 	"github.com/mytheresa/go-hiring-challenge/internal/product"
 )
 
@@ -35,7 +36,8 @@ func main() {
 
 	// Initialize handlers
 	prodRepo := product.NewProductsRepository(db)
-	prodService := product.NewService(prodRepo)
+	catRepo := category.NewCategoryRepository(db)
+	prodService := product.NewService(prodRepo, catRepo)
 	cat := product.NewCatalogHandler(prodService)
 
 	// Set up routing

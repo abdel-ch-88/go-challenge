@@ -41,10 +41,25 @@ func NewProductsRepository(db *gorm.DB) Repository {
 	}
 }
 
-func (r *ProductsRepository) GetAllProducts() ([]Product, error) {
+func (r *ProductsRepository) GetAllProductsWith(offset uint, limit uint, catId *uint, priceLimit *float64) ([]Product, uint, error) {
+	query := r.db.Model(&ProductModel{})
+
+	if catId != nil {
+		query = query.Where("category_id = ?", *catId)
+	}
+	if priceLimit != nil {
+		query = query.Where("price < ?", *priceLimit)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	var productModels []ProductModel
-	if err := r.db.Preload("Variants").Preload("Category").Find(&productModels).Error; err != nil {
-		return nil, err
+	if err := query.Offset(int(offset)).Limit(int(limit)).
+		Preload("Variants").Preload("Category").Find(&productModels).Error; err != nil {
+		return nil, 0, err
 	}
 
 	// Map Db model to Domain one
@@ -53,11 +68,12 @@ func (r *ProductsRepository) GetAllProducts() ([]Product, error) {
 		products[i] = mapProductModel(pm)
 	}
 
-	return products, nil
+	return products, uint(total), nil
 }
 
 func mapProductModel(pm ProductModel) Product {
 	return Product{
+		ID:       pm.ID,
 		Code:     pm.Code,
 		Price:    pm.Price.InexactFloat64(),
 		Variants: mapVariantModels(pm.Variants),
@@ -73,6 +89,7 @@ func mapVariantModels(vms []VariantModel) []Variant {
 	variants := make([]Variant, len(vms))
 	for i, vm := range vms {
 		variants[i] = Variant{
+			ID:    vm.ID,
 			Name:  vm.Name,
 			SKU:   vm.SKU,
 			Price: vm.Price.InexactFloat64(),

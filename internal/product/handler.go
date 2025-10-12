@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
+	"net/url"
+	"strconv"
 )
 
 type Response struct {
+	Total    uint          `jons:"total"`
 	Products []ProductItem `json:"products"`
 }
 
@@ -27,7 +30,13 @@ func NewCatalogHandler(s *Service) *CatalogHandler {
 }
 
 func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
-	res, err := h.srv.FindProducts()
+	findCrt, err := h.extrctParams(r.URL.Query())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res, total, err := h.srv.FindProducts(*findCrt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -43,6 +52,7 @@ func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	response := Response{
+		Total:    total,
 		Products: products,
 	}
 
@@ -50,6 +60,65 @@ func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *CatalogHandler) extrctParams(params url.Values) (*FindCriteria, error) {
+	var err error
+	var offset *uint
+	var limit *uint
+	var catCode *string
+	var priceLessThan *float64
+
+	// Check and validate the format of each GET param
+	offset, err = parseUint(params.Get("offset"))
+	if err != nil {
+		return nil, err
+	}
+
+	limit, err = parseUint(params.Get("limit"))
+	if err != nil {
+		return nil, err
+	}
+
+	if params.Has("category") {
+		catVal := params.Get("category")
+		catCode = &catVal
+	}
+
+	priceLessThan, err = parseFloat(params.Get("priceLessThan"))
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the busines logic validations of each param
+	return h.srv.BuildFindCriteria(offset, limit, catCode, priceLessThan)
+}
+
+func parseUint(val string) (*uint, error) {
+	if val == "" {
+		return nil, nil
+	}
+
+	intVal, err := strconv.Atoi(val)
+	if err != nil {
+		return nil, err
+	}
+
+	res := uint(intVal)
+	return &res, nil
+}
+
+func parseFloat(val string) (*float64, error) {
+	if val == "" {
+		return nil, nil
+	}
+
+	floatVal, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return &floatVal, nil
 }
 
 func mapProduct(p Product) ProductItem {
