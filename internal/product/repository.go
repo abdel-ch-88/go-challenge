@@ -1,15 +1,18 @@
 package product
 
 import (
+	"github.com/mytheresa/go-hiring-challenge/internal/category"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
 type ProductModel struct {
-	ID       uint            `gorm:"primaryKey"`
-	Code     string          `gorm:"uniqueIndex;not null"`
-	Price    decimal.Decimal `gorm:"type:decimal(10,2);not null"`
-	Variants []VariantModel  `gorm:"foreignKey:ProductID"`
+	ID         uint            `gorm:"primaryKey"`
+	Code       string          `gorm:"uniqueIndex;not null"`
+	Price      decimal.Decimal `gorm:"type:decimal(10,2);not null"`
+	Variants   []VariantModel  `gorm:"foreignKey:ProductID"`
+	CategoryID *uint
+	Category   *category.CategoryModel `gorm:"foreignKey:CategoryID"`
 }
 
 func (p *ProductModel) TableName() string {
@@ -40,7 +43,7 @@ func NewProductsRepository(db *gorm.DB) Repository {
 
 func (r *ProductsRepository) GetAllProducts() ([]Product, error) {
 	var productModels []ProductModel
-	if err := r.db.Preload("Variants").Find(&productModels).Error; err != nil {
+	if err := r.db.Preload("Variants").Preload("Category").Find(&productModels).Error; err != nil {
 		return nil, err
 	}
 
@@ -58,6 +61,7 @@ func mapProductModel(pm ProductModel) Product {
 		Code:     pm.Code,
 		Price:    pm.Price.InexactFloat64(),
 		Variants: mapVariantModels(pm.Variants),
+		Category: mapCategoryModel(pm.Category),
 	}
 }
 
@@ -76,4 +80,15 @@ func mapVariantModels(vms []VariantModel) []Variant {
 	}
 
 	return variants
+}
+
+func mapCategoryModel(c *category.CategoryModel) *category.Category {
+	if c == nil {
+		return nil
+	}
+
+	return &category.Category{
+		Code: c.Code,
+		Name: c.Name,
+	}
 }

@@ -11,8 +11,9 @@ type Response struct {
 }
 
 type ProductItem struct {
-	Code  string  `json:"code"`
-	Price float64 `json:"price"`
+	Code     string  `json:"code"`
+	Price    float64 `json:"price"`
+	Category string  `json:"category"`
 }
 
 type CatalogHandler struct {
@@ -52,8 +53,14 @@ func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func mapProduct(p Product) ProductItem {
-	return ProductItem{
+	item := ProductItem{
 		Code:  p.Code,
 		Price: math.Round(p.Price*100) / 100,
 	}
+
+	if p.Category != nil {
+		item.Category = p.Category.Name
+	}
+
+	return item
 }

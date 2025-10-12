@@ -1,11 +1,15 @@
 package product
 
+import "github.com/mytheresa/go-hiring-challenge/internal/category"
+
 // Product represents a product in the catalog.
 // It includes a unique code and a price.
+// It can have multiple variants and belongs only in one category
 type Product struct {
 	Code     string
 	Price    float64
 	Variants []Variant
+	Category *category.Category
 }
 
 // Variant represents a product variant in the catalog.
