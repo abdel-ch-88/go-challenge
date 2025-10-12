@@ -1,45 +1,41 @@
-package catalog
+package product
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
-
-	"github.com/mytheresa/go-hiring-challenge/models"
 )
 
 type Response struct {
-	Products []Product `json:"products"`
+	Products []ProductItem `json:"products"`
 }
 
-type Product struct {
+type ProductItem struct {
 	Code  string  `json:"code"`
 	Price float64 `json:"price"`
 }
 
 type CatalogHandler struct {
-	repo *models.ProductsRepository
+	srv *Service
 }
 
-func NewCatalogHandler(r *models.ProductsRepository) *CatalogHandler {
+func NewCatalogHandler(s *Service) *CatalogHandler {
 	return &CatalogHandler{
-		repo: r,
+		srv: s,
 	}
 }
 
 func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
-	res, err := h.repo.GetAllProducts()
+	res, err := h.srv.FindProducts()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Map response
-	products := make([]Product, len(res))
+	products := make([]ProductItem, len(res))
 	for i, p := range res {
-		products[i] = Product{
-			Code:  p.Code,
-			Price: p.Price.InexactFloat64(),
-		}
+		products[i] = mapProduct(p)
 	}
 
 	// Return the products as a JSON response
@@ -52,5 +48,12 @@ func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+}
+
+func mapProduct(p Product) ProductItem {
+	return ProductItem{
+		Code:  p.Code,
+		Price: math.Round(p.Price*100) / 100,
 	}
 }
