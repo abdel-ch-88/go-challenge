@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-type Response struct {
+type CatalogResponse struct {
 	Total    uint          `jons:"total"`
 	Products []ProductItem `json:"products"`
 }
@@ -19,17 +19,30 @@ type ProductItem struct {
 	Category string  `json:"category"`
 }
 
-type CatalogHandler struct {
-	srv *Service
+type ProductResponse struct {
+	Code     string        `json:"code"`
+	Price    float64       `json:"price"`
+	Category string        `json:"category"`
+	Variants []VariantItem `json:"variants"`
 }
 
-func NewCatalogHandler(s *Service) *CatalogHandler {
+type VariantItem struct {
+	Name  string  `json:"name"`
+	SKU   string  `json:"SKU"`
+	Price float64 `json:"price"`
+}
+
+type CatalogHandler struct {
+	srv Service
+}
+
+func NewCatalogHandler(s Service) *CatalogHandler {
 	return &CatalogHandler{
 		srv: s,
 	}
 }
 
-func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
+func (h *CatalogHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 	findCrt, err := h.extrctParams(r.URL.Query())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -45,16 +58,45 @@ func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	// Map response
 	products := make([]ProductItem, len(res))
 	for i, p := range res {
-		products[i] = mapProduct(p)
+		products[i] = mapProductToItem(p)
 	}
 
 	// Return the products as a JSON response
 	w.Header().Set("Content-Type", "application/json")
 
-	response := Response{
+	response := CatalogResponse{
 		Total:    total,
 		Products: products,
 	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
+	prodCode := r.PathValue("code")
+	if prodCode == "" {
+		http.Error(w, "missing mandatory path param: code", http.StatusBadRequest)
+		return
+	}
+
+	res, err := h.srv.GetProduct(prodCode)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if res == nil {
+		http.Error(w, "no product was found with the provided code", http.StatusNotFound)
+		return
+	}
+
+	// Map response
+	response := mapProductToResponse(*res)
+
+	// Return the products as a JSON response
+	w.Header().Set("Content-Type", "application/json")
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -121,7 +163,7 @@ func parseFloat(val string) (*float64, error) {
 	return &floatVal, nil
 }
 
-func mapProduct(p Product) ProductItem {
+func mapProductToItem(p Product) ProductItem {
 	item := ProductItem{
 		Code:  p.Code,
 		Price: math.Round(p.Price*100) / 100,
@@ -132,4 +174,36 @@ func mapProduct(p Product) ProductItem {
 	}
 
 	return item
+}
+
+func mapProductToResponse(p Product) ProductResponse {
+	res := ProductResponse{
+		Code:  p.Code,
+		Price: p.Price,
+	}
+
+	if p.Category != nil {
+		res.Category = p.Category.Name
+	}
+	res.Variants = mapVariantToItem(p.Variants)
+
+	return res
+}
+
+func mapVariantToItem(vs []Variant) []VariantItem {
+	if vs == nil {
+		return nil
+	}
+
+	items := make([]VariantItem, len(vs))
+
+	for i, v := range vs {
+		items[i] = VariantItem{
+			Name:  v.Name,
+			SKU:   v.SKU,
+			Price: *v.Price,
+		}
+	}
+
+	return items
 }

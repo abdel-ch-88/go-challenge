@@ -9,26 +9,19 @@ import (
 const DefaultOffset = 0
 const DefaultLimit = 10
 
-type Service struct {
+type ProductService struct {
 	prodRepo Repository
 	catRepo  category.Repository
 }
 
-type FindCriteria struct {
-	Offset        uint
-	Limit         uint
-	CategoryID    *uint
-	PriceLessThan *float64
-}
-
-func NewService(prodRepo Repository, catRepo category.Repository) *Service {
-	return &Service{
+func NewService(prodRepo Repository, catRepo category.Repository) Service {
+	return &ProductService{
 		prodRepo: prodRepo,
 		catRepo:  catRepo,
 	}
 }
 
-func (srv *Service) BuildFindCriteria(offset *uint, limit *uint, catCode *string, priceLessThan *float64) (*FindCriteria, error) {
+func (srv *ProductService) BuildFindCriteria(offset *uint, limit *uint, catCode *string, priceLessThan *float64) (*FindCriteria, error) {
 	criteria := FindCriteria{}
 
 	if offset == nil {
@@ -64,6 +57,27 @@ func (srv *Service) BuildFindCriteria(offset *uint, limit *uint, catCode *string
 	return &criteria, nil
 }
 
-func (srv *Service) FindProducts(fc FindCriteria) ([]Product, uint, error) {
+func (srv *ProductService) FindProducts(fc FindCriteria) ([]Product, uint, error) {
 	return srv.prodRepo.GetAllProductsWith(fc.Offset, fc.Limit, fc.CategoryID, fc.PriceLessThan)
+}
+
+func (srv *ProductService) GetProduct(code string) (*Product, error) {
+	prod, err := srv.prodRepo.GetProductByCode(code)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if it's an empty product
+	if prod == nil || (prod.ID == 0 && prod.Code == "" && prod.Price == float64(0.0)) {
+		return nil, nil
+	}
+
+	// Ensure that the vraints have thier own price or thier parent Product's price
+	for i, v := range prod.Variants {
+		if v.Price == nil {
+			prod.Variants[i].Price = &prod.Price
+		}
+	}
+
+	return prod, nil
 }

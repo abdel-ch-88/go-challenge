@@ -20,11 +20,11 @@ func (p *ProductModel) TableName() string {
 }
 
 type VariantModel struct {
-	ID        uint            `gorm:"primaryKey"`
-	ProductID uint            `gorm:"not null"`
-	Name      string          `gorm:"not null"`
-	SKU       string          `gorm:"uniqueIndex;not null"`
-	Price     decimal.Decimal `gorm:"type:decimal(10,2);null"`
+	ID        uint             `gorm:"primaryKey"`
+	ProductID uint             `gorm:"not null"`
+	Name      string           `gorm:"not null"`
+	SKU       string           `gorm:"uniqueIndex;not null"`
+	Price     *decimal.Decimal `gorm:"type:decimal(10,2);null"`
 }
 
 func (v *VariantModel) TableName() string {
@@ -65,14 +65,24 @@ func (r *ProductsRepository) GetAllProductsWith(offset uint, limit uint, catId *
 	// Map Db model to Domain one
 	products := make([]Product, len(productModels))
 	for i, pm := range productModels {
-		products[i] = mapProductModel(pm)
+		products[i] = *mapProductModel(pm)
 	}
 
 	return products, uint(total), nil
 }
 
-func mapProductModel(pm ProductModel) Product {
-	return Product{
+func (r *ProductsRepository) GetProductByCode(code string) (*Product, error) {
+	var productModel ProductModel
+	if err := r.db.Model(&ProductModel{}).Where("code = ?", code).
+		Preload("Variants").Preload("Category").Find(&productModel).Error; err != nil {
+		return nil, err
+	}
+
+	return mapProductModel(productModel), nil
+}
+
+func mapProductModel(pm ProductModel) *Product {
+	return &Product{
 		ID:       pm.ID,
 		Code:     pm.Code,
 		Price:    pm.Price.InexactFloat64(),
@@ -88,12 +98,17 @@ func mapVariantModels(vms []VariantModel) []Variant {
 
 	variants := make([]Variant, len(vms))
 	for i, vm := range vms {
-		variants[i] = Variant{
-			ID:    vm.ID,
-			Name:  vm.Name,
-			SKU:   vm.SKU,
-			Price: vm.Price.InexactFloat64(),
+		v := Variant{
+			ID:   vm.ID,
+			Name: vm.Name,
+			SKU:  vm.SKU,
 		}
+		if vm.Price != nil {
+			priceVal := vm.Price.InexactFloat64()
+			v.Price = &priceVal
+		}
+
+		variants[i] = v
 	}
 
 	return variants

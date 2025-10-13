@@ -20,9 +20,24 @@ type Variant struct {
 	ID    uint
 	Name  string
 	SKU   string
-	Price float64
+	Price *float64
+}
+
+// A Service that will be implemented with the business logic of the doamin product
+type FindCriteria struct {
+	Offset        uint
+	Limit         uint
+	CategoryID    *uint
+	PriceLessThan *float64
+}
+
+type Service interface {
+	BuildFindCriteria(offset *uint, limit *uint, catCode *string, priceLessThan *float64) (*FindCriteria, error)
+	FindProducts(fc FindCriteria) ([]Product, uint, error)
+	GetProduct(code string) (*Product, error)
 }
 
 type Repository interface {
 	GetAllProductsWith(offset uint, limit uint, categoryID *uint, priceLimit *float64) ([]Product, uint, error)
+	GetProductByCode(code string) (*Product, error)
 }
