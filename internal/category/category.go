@@ -8,6 +8,13 @@ type Category struct {
 	Name string
 }
 
+type Service interface {
+	GetAllCategories() ([]Category, error)
+	CreateCategory(newCat Category) error
+}
+
 type Repository interface {
 	GetCategoryByCode(code string) (*Category, error)
+	GetAllCategories() ([]Category, error)
+	Save(c Category) error
 }

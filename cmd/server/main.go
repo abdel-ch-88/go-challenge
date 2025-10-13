@@ -37,13 +37,20 @@ func main() {
 	// Initialize handlers
 	prodRepo := product.NewProductsRepository(db)
 	catRepo := category.NewCategoryRepository(db)
+
 	prodService := product.NewService(prodRepo, catRepo)
-	cat := product.NewCatalogHandler(prodService)
+	catService := category.NewService(catRepo)
+
+	cata := product.NewCatalogHandler(prodService)
+	categ := category.NewCategoryHandler(catService)
 
 	// Set up routing
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /catalog", cat.HandleList)
-	mux.HandleFunc("GET /catalog/{code}", cat.HandleGet)
+	mux.HandleFunc("GET /catalog", cata.HandleList)
+	mux.HandleFunc("GET /catalog/{code}", cata.HandleGet)
+
+	mux.HandleFunc("GET /categories", categ.HandleList)
+	mux.HandleFunc("POST /categories", categ.HandleCreate)
 
 	// Set up the HTTP server
 	srv := &http.Server{
