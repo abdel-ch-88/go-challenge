@@ -31,3 +31,16 @@ The implementation follows the previous structure and component pattern made in 
 
 Also added unit tests for both endpoints/handlers
 
+## Add Service Test and provided Api Response
+
+Finaly I've added unit tests for both daomain services, and reverse engineered the provided `api/response_test.go` to implement it's source code. 
+
+## Whishlist / Polishing
+
+Here I wanted to express some improvements that I would have made with more time:
+
+- Custom Error, where the _Service_ return a custom error to the _Handler_, which in turn will determine if it's a domain error (to map it to the HTTP 4xx) or other (5xx errors)
+
+- Perhaps introduce goroutines in the call to Get Prodocts by filters, on goroutine to return the total and the other to fetch the paginated products.
+
+- A swagger file with the implemented endpoints read to be used with examples.
